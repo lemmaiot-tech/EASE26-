@@ -69,7 +69,7 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#fdfaf5] selection:bg-[#008080] selection:text-white">
+    <div className="min-h-screen bg-[#fdfaf5] selection:bg-[#008080] selection:text-white" style={settings.background_image_url ? { backgroundImage: `url(${settings.background_image_url})`, backgroundAttachment: 'fixed', backgroundSize: 'cover' } : {}}>
       {!isOpen && <Envelope onOpen={() => setIsOpen(true)} />}
 
       <main className={`transition-all duration-1000 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 h-0 overflow-hidden'}`}>
@@ -97,7 +97,7 @@ const App: React.FC = () => {
         <section className="relative h-screen flex flex-col items-center justify-center text-center px-4">
           <div className="absolute inset-0 z-0">
              <img 
-               src="https://picsum.photos/seed/wedding-floral/1600/1200" 
+               src={settings.hero_image_url || "https://picsum.photos/seed/wedding-floral/1600/1200"} 
                alt="Background" 
                className="w-full h-full object-cover opacity-10"
              />

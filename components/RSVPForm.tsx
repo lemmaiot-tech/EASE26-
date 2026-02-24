@@ -82,8 +82,8 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
       ]);
 
     if (error) {
-      console.error('Error submitting RSVP:', error);
-      alert('Failed to submit RSVP. Please try again.');
+      console.error('Supabase RSVP Submission Error:', error);
+      alert(`Failed to submit RSVP: ${error.message || 'Unknown error'}. Please check your database connection.`);
     } else {
       setShowSuccess(true);
       fetchGuestBook();

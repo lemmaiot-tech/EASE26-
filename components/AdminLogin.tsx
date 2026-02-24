@@ -10,30 +10,15 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [envStatus, setEnvStatus] = useState<'checking' | 'missing' | 'ready'>('checking');
-
-  useEffect(() => {
-    const adminPass = import.meta.env.VITE_ADMIN_PASSWORD;
-    if (!adminPass) {
-      setEnvStatus('missing');
-    } else {
-      setEnvStatus('ready');
-    }
-  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const adminPass = import.meta.env.VITE_ADMIN_PASSWORD;
-    
-    if (!adminPass) {
-      setError('Configuration Error: VITE_ADMIN_PASSWORD is not set in your environment variables.');
-      return;
-    }
+    const HARDCODED_PASSWORD = '@Ease26';
 
-    if (password === adminPass) {
+    if (password === HARDCODED_PASSWORD) {
       onLogin();
     } else {
-      setError('Incorrect password. Please verify the value of VITE_ADMIN_PASSWORD in your settings.');
+      setError('Incorrect password. Please try again.');
     }
   };
 
@@ -55,16 +40,6 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
         </div>
         
         <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          {envStatus === 'missing' && (
-            <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl flex items-start gap-3">
-              <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={18} />
-              <div className="text-xs text-amber-800">
-                <p className="font-bold mb-1">Environment Variable Missing</p>
-                <p>Please add <code className="bg-amber-100 px-1 rounded">VITE_ADMIN_PASSWORD</code> to your environment variables and restart the dev server.</p>
-              </div>
-            </div>
-          )}
-
           <div className="space-y-2">
             <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Password</label>
             <div className="relative">
@@ -90,8 +65,7 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
           
           <button 
             type="submit"
-            className="w-full bg-[#008080] text-white py-4 rounded-xl font-bold tracking-widest uppercase hover:bg-[#006666] active:scale-95 transition-all shadow-lg disabled:opacity-50"
-            disabled={envStatus === 'missing'}
+            className="w-full bg-[#008080] text-white py-4 rounded-xl font-bold tracking-widest uppercase hover:bg-[#006666] active:scale-95 transition-all shadow-lg"
           >
             Login
           </button>

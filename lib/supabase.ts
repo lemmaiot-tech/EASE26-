@@ -28,6 +28,8 @@ export interface WeddingSettings {
   hashtag: string;
   rsvp_deadline: string;
   rsvp_phones: string[];
+  hero_image_url?: string;
+  background_image_url?: string;
 }
 
 export interface GalleryImage {

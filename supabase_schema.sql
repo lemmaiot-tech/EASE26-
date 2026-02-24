@@ -14,6 +14,8 @@ CREATE TABLE "EASE-settings" (
   hashtag TEXT DEFAULT '#EASE''26',
   rsvp_deadline TEXT DEFAULT 'June 25th, 2026',
   rsvp_phones TEXT[] DEFAULT ARRAY['08023650289', '07018712196', '09039244218'],
+  hero_image_url TEXT,
+  background_image_url TEXT,
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
