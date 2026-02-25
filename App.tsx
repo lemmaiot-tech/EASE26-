@@ -4,10 +4,12 @@ import Envelope from './components/Envelope';
 import Countdown from './components/Countdown';
 import RSVPForm from './components/RSVPForm';
 import Gallery from './components/Gallery';
+import GuestBook from './components/GuestBook';
 import { supabase, WeddingSettings, isSupabaseConfigured } from './lib/supabase';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
 import { AlertCircle } from 'lucide-react';
+import ErrorBoundary from './components/ErrorBoundary';
 
 const DEFAULT_SETTINGS: WeddingSettings = {
   id: '',
@@ -62,10 +64,15 @@ const App: React.FC = () => {
   };
 
   if (showAdmin) {
-    if (!isAdminLoggedIn) {
-      return <AdminLogin onLogin={() => setIsAdminLoggedIn(true)} onCancel={() => setShowAdmin(false)} />;
-    }
-    return <AdminDashboard onLogout={() => { setIsAdminLoggedIn(false); setShowAdmin(false); }} onUpdate={fetchSettings} />;
+    return (
+      <ErrorBoundary>
+        {!isAdminLoggedIn ? (
+          <AdminLogin onLogin={() => setIsAdminLoggedIn(true)} onCancel={() => setShowAdmin(false)} />
+        ) : (
+          <AdminDashboard onLogout={() => { setIsAdminLoggedIn(false); setShowAdmin(false); }} onUpdate={fetchSettings} />
+        )}
+      </ErrorBoundary>
+    );
   }
 
   return (
@@ -218,7 +225,16 @@ const App: React.FC = () => {
           <Gallery />
         </section>
 
-        {/* RSVP & Guest Book Section */}
+        {/* Guest Book Section */}
+        <section id="guestbook" className="py-24 px-6 bg-white">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-serif-elegant text-[#008080]">Guest Book</h2>
+            <p className="text-stone-400 mt-2 font-light uppercase tracking-[0.2em] text-xs">Share your love and blessings</p>
+          </div>
+          <GuestBook />
+        </section>
+
+        {/* RSVP Section */}
         <section id="rsvp" className="relative py-24 px-6 bg-[#008080] text-white overflow-hidden">
            {/* Floral background decoration */}
            <div className="absolute inset-0 opacity-5 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')]"></div>

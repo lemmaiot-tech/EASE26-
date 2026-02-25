@@ -41,22 +41,30 @@ CREATE TABLE "EASE-rsvp" (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
 );
 
+-- 4. Guest Book Table
+CREATE TABLE "EASE-guestbook" (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  name TEXT NOT NULL,
+  message TEXT NOT NULL,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
+);
+
 -- Enable Row Level Security (RLS)
 ALTER TABLE "EASE-settings" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "EASE-gallery" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE "EASE-rsvp" ENABLE ROW LEVEL SECURITY;
+ALTER TABLE "EASE-guestbook" ENABLE ROW LEVEL SECURITY;
 
 -- Create Policies (Allow public read, admin write)
--- Note: In a real app, you'd use Supabase Auth for the admin. 
--- For this demo, we'll allow public read and assume admin uses a secret key or we'll bypass RLS for simplicity in this sandbox if needed, 
--- but better to set up basic policies.
-
 CREATE POLICY "Allow public read on settings" ON "EASE-settings" FOR SELECT USING (true);
 CREATE POLICY "Allow public read on gallery" ON "EASE-gallery" FOR SELECT USING (true);
 CREATE POLICY "Allow public read on rsvp" ON "EASE-rsvp" FOR SELECT USING (true);
 CREATE POLICY "Allow public insert on rsvp" ON "EASE-rsvp" FOR INSERT WITH CHECK (true);
+CREATE POLICY "Allow public read on guestbook" ON "EASE-guestbook" FOR SELECT USING (true);
+CREATE POLICY "Allow public insert on guestbook" ON "EASE-guestbook" FOR INSERT WITH CHECK (true);
 
--- Admin policies (Simplified for demo - in production use proper auth)
+-- Admin policies
 CREATE POLICY "Allow all on settings for authenticated" ON "EASE-settings" FOR ALL USING (true);
 CREATE POLICY "Allow all on gallery for authenticated" ON "EASE-gallery" FOR ALL USING (true);
 CREATE POLICY "Allow all on rsvp for authenticated" ON "EASE-rsvp" FOR ALL USING (true);
+CREATE POLICY "Allow all on guestbook for authenticated" ON "EASE-guestbook" FOR ALL USING (true);

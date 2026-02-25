@@ -11,11 +11,14 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
   const [activeTab, setActiveTab] = useState<'settings' | 'gallery' | 'rsvps'>('settings');
   const [settings, setSettings] = useState<WeddingSettings | null>(null);
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
+  const [wishes, setWishes] = useState<any[]>([]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [isSaving, setIsSaving] = useState(false);
   const [isSeeding, setIsSeeding] = useState(false);
   const [newImageUrl, setNewImageUrl] = useState('');
   const [selectedRSVP, setSelectedRSVP] = useState<RSVP | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
     if (supabase) {
@@ -25,16 +28,36 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
 
   const fetchData = async () => {
     if (!supabase) return;
+    setIsLoading(true);
+    setFetchError(null);
     
-    const [settingsRes, rsvpsRes, galleryRes] = await Promise.all([
-      supabase.from('EASE-settings').select('*').single(),
-      supabase.from('EASE-rsvp').select('*').order('created_at', { ascending: false }),
-      supabase.from('EASE-gallery').select('*').order('order', { ascending: true })
-    ]);
+    try {
+      const [settingsRes, rsvpsRes, galleryRes] = await Promise.all([
+        supabase.from('EASE-settings').select('*').single(),
+        supabase.from('EASE-rsvp').select('*').order('created_at', { ascending: false }),
+        supabase.from('EASE-gallery').select('*').order('order', { ascending: true })
+      ]);
 
-    if (settingsRes.data) setSettings(settingsRes.data);
-    if (rsvpsRes.data) setRsvps(rsvpsRes.data);
-    if (galleryRes.data) setGallery(galleryRes.data);
+      if (settingsRes.error && settingsRes.error.code !== 'PGRST116') {
+        throw new Error(`Settings error: ${settingsRes.error.message}`);
+      }
+      if (rsvpsRes.error) throw new Error(`RSVP error: ${rsvpsRes.error.message}`);
+      if (galleryRes.error) throw new Error(`Gallery error: ${galleryRes.error.message}`);
+
+      if (settingsRes.data) setSettings(settingsRes.data);
+      if (rsvpsRes.data) {
+        setRsvps(rsvpsRes.data);
+        // Filter wishes from RSVPs
+        const guestWishes = rsvpsRes.data.filter(r => r.message && r.message.trim() !== '');
+        setWishes(guestWishes);
+      }
+      if (galleryRes.data) setGallery(galleryRes.data);
+    } catch (err: any) {
+      console.error('Fetch error:', err);
+      setFetchError(err.message || 'An unexpected error occurred while fetching data.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -81,6 +104,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
     else fetchData();
   };
 
+  const handleDeleteWish = async (id: string) => {
+    if (!confirm('Remove this wish from the guest book? (The RSVP will remain)') || !supabase) return;
+    const { error } = await supabase
+      .from('EASE-rsvp')
+      .update({ message: '' })
+      .eq('id', id);
+      
+    if (error) alert('Error removing wish: ' + error.message);
+    else fetchData();
+  };
+
   const handleSeedDatabase = async () => {
     if (!supabase || !confirm('This will populate your database with default wedding data. Continue?')) return;
     setIsSeeding(true);
@@ -109,13 +143,21 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
         await supabase.from('EASE-settings').insert([defaultSettings]);
       }
 
-      // 2. Seed Gallery
+      // 3. Seed Gallery
       const defaultImages = [
         { url: "https://picsum.photos/seed/wed1/1200/800", order: 0 },
         { url: "https://picsum.photos/seed/wed2/1200/800", order: 1 },
         { url: "https://picsum.photos/seed/wed3/1200/800", order: 2 }
       ];
       await supabase.from('EASE-gallery').insert(defaultImages);
+
+      // 4. Seed RSVPs with Guest Book entries
+      const defaultRSVPs = [
+        { name: 'John Doe', email: 'john@example.com', attending: 'yes', guests: 2, message: 'Wishing you both a lifetime of happiness and love!' },
+        { name: 'Jane Smith', email: 'jane@example.com', attending: 'yes', guests: 1, message: 'So happy for you two! Can\'t wait to celebrate.' },
+        { name: 'Michael Brown', email: 'mike@example.com', attending: 'no', guests: 0, message: 'May your journey together be filled with joy and laughter. Sorry I can\'t make it!' }
+      ];
+      await supabase.from('EASE-rsvp').insert(defaultRSVPs);
 
       alert('Database seeded successfully!');
       fetchData();
@@ -170,7 +212,13 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
               onClick={() => setActiveTab('rsvps')}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'rsvps' ? 'bg-[#008080] text-white shadow-md' : 'hover:bg-stone-100 text-stone-600'}`}
             >
-              <Users size={20} /> RSVPs & Guest Book
+              <Users size={20} /> RSVPs
+            </button>
+            <button 
+              onClick={() => setActiveTab('guestbook' as any)}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === ('guestbook' as any) ? 'bg-[#008080] text-white shadow-md' : 'hover:bg-stone-100 text-stone-600'}`}
+            >
+              <MessageSquare size={20} /> Guest Book
             </button>
           </div>
 
@@ -206,7 +254,32 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
         </aside>
 
         {/* Content */}
-        <main className="bg-white rounded-3xl shadow-sm border border-stone-100 p-8 overflow-hidden">
+        <main className="bg-white rounded-3xl shadow-sm border border-stone-100 p-8 overflow-hidden relative">
+          {isLoading && (
+            <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center">
+              <div className="flex flex-col items-center gap-3">
+                <div className="w-8 h-8 border-4 border-[#008080] border-t-transparent rounded-full animate-spin"></div>
+                <p className="text-xs font-bold text-[#008080] uppercase tracking-widest">Loading Data...</p>
+              </div>
+            </div>
+          )}
+
+          {fetchError && (
+            <div className="mb-8 bg-red-50 border border-red-100 p-6 rounded-2xl flex flex-col items-center text-center gap-4">
+              <AlertTriangle className="text-red-500" size={32} />
+              <div>
+                <h3 className="text-red-900 font-bold">Data Fetch Error</h3>
+                <p className="text-red-700 text-sm mt-1">{fetchError}</p>
+              </div>
+              <button 
+                onClick={fetchData}
+                className="bg-red-100 text-red-700 px-6 py-2 rounded-xl text-xs font-bold hover:bg-red-200 transition-all flex items-center gap-2"
+              >
+                <Database size={14} /> Try Again
+              </button>
+            </div>
+          )}
+
           {activeTab === 'settings' && settings && (
             <form onSubmit={handleSaveSettings} className="space-y-8">
               <div className="flex justify-between items-center border-b border-stone-100 pb-4">
@@ -388,7 +461,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
           {activeTab === 'rsvps' && (
             <div className="space-y-8">
               <div className="flex justify-between items-center border-b border-stone-100 pb-4">
-                <h2 className="text-2xl font-serif-elegant text-[#008080]">RSVPs & Guest Book</h2>
+                <h2 className="text-2xl font-serif-elegant text-[#008080]">RSVPs</h2>
                 <div className="text-sm text-stone-400 font-bold">Total: {rsvps.length}</div>
               </div>
 
@@ -443,6 +516,46 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
                     </div>
                   </div>
                 )))}
+              </div>
+            </div>
+          )}
+
+          {(activeTab as string) === 'guestbook' && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center border-b border-stone-100 pb-4">
+                <h2 className="text-2xl font-serif-elegant text-[#008080]">Guest Book Management</h2>
+                <div className="text-sm text-stone-400 font-bold">Total Wishes: {wishes.length}</div>
+              </div>
+
+              <div className="space-y-4">
+                {wishes.length === 0 ? (
+                  <div className="text-center py-20 bg-stone-50 rounded-3xl border-2 border-dashed border-stone-200">
+                    <MessageSquare size={48} className="mx-auto text-stone-300 mb-4" />
+                    <p className="text-stone-500 font-medium">No wishes yet.</p>
+                  </div>
+                ) : (
+                  wishes.map((wish) => (
+                    <div key={wish.id} className="border border-stone-100 rounded-2xl p-6 hover:shadow-md transition-all">
+                      <div className="flex justify-between items-start mb-4">
+                        <div>
+                          <h3 className="font-bold text-lg text-[#008080]">{wish.name}</h3>
+                          <p className="text-xs text-stone-300 uppercase tracking-widest font-bold">
+                            {new Date(wish.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <button 
+                          onClick={() => handleDeleteWish(wish.id)}
+                          className="text-stone-300 hover:text-red-500 transition-colors"
+                        >
+                          <Trash2 size={18} />
+                        </button>
+                      </div>
+                      <div className="bg-stone-50 p-4 rounded-xl">
+                        <p className="text-stone-600 italic leading-relaxed">"{wish.message}"</p>
+                      </div>
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}

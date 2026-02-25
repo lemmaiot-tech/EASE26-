@@ -16,39 +16,9 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
     guests: 1,
     message: '',
   });
-  const [guestMessages, setGuestMessages] = useState<GuestMessage[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-
-  useEffect(() => {
-    if (supabase) {
-      fetchGuestBook();
-    }
-  }, []);
-
-  const fetchGuestBook = async () => {
-    if (!supabase) return;
-    
-    const { data, error } = await supabase
-      .from('EASE-rsvp')
-      .select('*')
-      .not('message', 'is', null)
-      .neq('message', '')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching guest book:', error);
-    } else if (data) {
-      const formattedMessages: GuestMessage[] = data.map(item => ({
-        id: item.id,
-        name: item.name,
-        message: item.message,
-        date: new Date(item.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })
-      }));
-      setGuestMessages(formattedMessages);
-    }
-  };
 
   const handleGenerateAI = async () => {
     if (!formData.name) {
@@ -86,7 +56,6 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
       alert(`Failed to submit RSVP: ${error.message || 'Unknown error'}. Please check your database connection.`);
     } else {
       setShowSuccess(true);
-      fetchGuestBook();
       setFormData({
         name: '',
         email: '',
@@ -175,7 +144,7 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
 
         <div className="space-y-2">
           <div className="flex justify-between items-end">
-            <label className="text-xs uppercase tracking-widest font-semibold text-white/50">A Message for the Couple (Guest Book)</label>
+            <label className="text-xs uppercase tracking-widest font-semibold text-white/50">A Message for the Couple (Sign Guest Book)</label>
             <button 
               type="button" 
               onClick={handleGenerateAI}
@@ -189,7 +158,7 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
           <textarea 
             rows={3} 
             className="w-full px-4 py-3 rounded-none bg-white/5 border border-white/10 text-white focus:ring-1 focus:ring-[#B76E79] outline-none resize-none placeholder-white/20"
-            placeholder="Share your wishes..."
+            placeholder="Share your wishes... (This will appear in our Guest Book)"
             value={formData.message}
             onChange={e => setFormData({...formData, message: e.target.value})}
           ></textarea>
@@ -203,30 +172,6 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
           {isSubmitting ? 'Sending...' : 'Send RSVP & Sign Guest Book'}
         </button>
       </form>
-
-      {/* Guest Book Display */}
-      <div className="max-w-2xl mx-auto pt-8">
-        <h3 className="text-center font-serif-elegant text-3xl text-[#B76E79] mb-8">Guest Book & Wishes</h3>
-        
-        <div className="space-y-6">
-           {guestMessages.length === 0 ? (
-             <p className="text-center text-white/40 italic">Be the first to leave a wish!</p>
-           ) : (
-             guestMessages.map((msg) => (
-               <div key={msg.id} className="bg-white/5 border border-white/5 p-6 rounded-sm relative group hover:bg-white/10 transition-colors">
-                  <div className="absolute -top-3 -left-2 text-4xl text-[#B76E79]/20 font-serif-elegant">"</div>
-                  <p className="text-white/90 italic font-serif-elegant text-lg mb-4 relative z-10 leading-relaxed">
-                    {msg.message}
-                  </p>
-                  <div className="flex items-center justify-between border-t border-white/10 pt-4">
-                     <span className="text-[#B76E79] font-semibold text-sm uppercase tracking-wider">{msg.name}</span>
-                     <span className="text-white/40 text-xs">{msg.date}</span>
-                  </div>
-               </div>
-             ))
-           )}
-        </div>
-      </div>
     </div>
   );
 };
