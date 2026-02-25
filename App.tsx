@@ -104,7 +104,7 @@ const App: React.FC = () => {
         <section className="relative h-screen flex flex-col items-center justify-center text-center px-4">
           <div className="absolute inset-0 z-0">
              <img 
-               src={settings.hero_image_url || "https://picsum.photos/seed/wedding-floral/1600/1200"} 
+               src={settings.hero_image_url || "https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1920"} 
                alt="Background" 
                className="w-full h-full object-cover opacity-10"
              />
@@ -159,7 +159,7 @@ const App: React.FC = () => {
             <div className="relative group">
                <div className="absolute -inset-4 border border-[#008080] rounded-sm opacity-30 group-hover:rotate-2 transition-transform duration-500"></div>
                <div className="rounded-sm overflow-hidden shadow-2xl">
-                 <img src="https://picsum.photos/seed/wedding-couple/800/1000" alt="Esther and Emmanuel" className="w-full h-full object-cover" />
+                 <img src={settings.details_image_url || "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=800"} alt="Esther and Emmanuel" className="w-full h-full object-cover" />
                </div>
             </div>
             

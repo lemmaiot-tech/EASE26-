@@ -29,6 +29,7 @@ export interface WeddingSettings {
   rsvp_deadline: string;
   rsvp_phones: string[];
   hero_image_url?: string;
+  details_image_url?: string;
   background_image_url?: string;
 }
 

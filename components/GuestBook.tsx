@@ -1,8 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
-import { MessageSquare, Send, Sparkles, Heart } from 'lucide-react';
-import { generateBlessing } from '../services/geminiService';
+import { MessageSquare, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 interface Wish {
@@ -61,7 +60,7 @@ const GuestBook: React.FC = () => {
             <p className="text-stone-400 italic">Be the first to share a blessing via the RSVP form!</p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <AnimatePresence initial={false}>
               {wishes.map((wish, index) => (
                 <motion.div 
@@ -69,20 +68,34 @@ const GuestBook: React.FC = () => {
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.1 }}
-                  className="bg-white p-6 rounded-3xl shadow-sm border border-stone-100 relative group hover:shadow-md transition-all flex flex-col h-full"
+                  className="bg-white p-8 rounded-2xl shadow-xl border border-stone-100 relative group hover:-translate-y-2 transition-all duration-300 flex flex-col h-full overflow-hidden"
                 >
-                  <div className="absolute -top-2 -left-2 w-8 h-8 bg-[#fdfaf5] rounded-full flex items-center justify-center border border-stone-100 text-[#B76E79]">
-                    <MessageSquare size={14} />
+                  {/* Decorative corner */}
+                  <div className="absolute top-0 right-0 w-16 h-16 bg-[#B76E79]/5 rounded-bl-full -mr-8 -mt-8 transition-all group-hover:bg-[#B76E79]/10"></div>
+                  
+                  <div className="mb-6 relative">
+                    <div className="w-12 h-12 bg-[#008080]/10 rounded-full flex items-center justify-center text-[#008080] mb-4 group-hover:scale-110 transition-transform">
+                      <MessageSquare size={20} />
+                    </div>
+                    <div className="absolute top-0 right-0 text-4xl text-[#B76E79]/20 font-serif-elegant">"</div>
                   </div>
-                  <p className="text-stone-600 italic leading-relaxed mb-6 font-serif-elegant text-lg flex-grow">
-                    "{wish.message}"
+
+                  <p className="text-stone-700 italic leading-relaxed mb-8 font-serif-elegant text-lg flex-grow relative z-10">
+                    {wish.message}
                   </p>
-                  <div className="flex justify-between items-center border-t border-stone-50 pt-4 mt-auto">
-                    <span className="text-sm font-bold text-[#008080] uppercase tracking-wider">{wish.name}</span>
-                    <span className="text-[10px] text-stone-300 font-bold uppercase tracking-widest">
-                      {new Date(wish.created_at).toLocaleDateString()}
-                    </span>
+
+                  <div className="flex flex-col border-t border-stone-100 pt-6 mt-auto">
+                    <span className="text-base font-bold text-[#008080] uppercase tracking-widest mb-1">{wish.name}</span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-stone-400 font-bold uppercase tracking-[0.2em]">
+                        {new Date(wish.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                      </span>
+                      <Heart size={12} className="text-[#B76E79] fill-[#B76E79]/20" />
+                    </div>
                   </div>
+                  
+                  {/* Bottom accent line */}
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-gradient-to-r from-[#008080] to-[#B76E79] transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left duration-500"></div>
                 </motion.div>
               ))}
             </AnimatePresence>

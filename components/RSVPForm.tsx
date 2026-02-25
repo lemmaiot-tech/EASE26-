@@ -1,8 +1,8 @@
 
 import React, { useState, useEffect } from 'react';
-import { generateBlessing } from '../services/geminiService';
-import { RSVPData, GuestMessage } from '../types';
+import { RSVPData } from '../types';
 import { supabase } from '../lib/supabase';
+import { CheckCircle2, Heart } from 'lucide-react';
 
 interface RSVPFormProps {
   deadline: string;
@@ -17,19 +17,15 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
     message: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [isGenerating, setIsGenerating] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
-  const handleGenerateAI = async () => {
-    if (!formData.name) {
-      alert("Please enter your name first!");
-      return;
+  useEffect(() => {
+    const submitted = localStorage.getItem('ease_rsvp_submitted');
+    if (submitted === 'true') {
+      setHasSubmitted(true);
     }
-    setIsGenerating(true);
-    const blessing = await generateBlessing(formData.name);
-    setFormData({ ...formData, message: blessing });
-    setIsGenerating(false);
-  };
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,6 +52,8 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
       alert(`Failed to submit RSVP: ${error.message || 'Unknown error'}. Please check your database connection.`);
     } else {
       setShowSuccess(true);
+      setHasSubmitted(true);
+      localStorage.setItem('ease_rsvp_submitted', 'true');
       setFormData({
         name: '',
         email: '',
@@ -63,10 +61,29 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
         guests: 1,
         message: '',
       });
-      setTimeout(() => setShowSuccess(false), 3000);
+      // We don't hide success immediately if we want them to see the thank you message
     }
     setIsSubmitting(false);
   };
+
+  if (hasSubmitted && !showSuccess) {
+    return (
+      <div className="bg-white/10 backdrop-blur-xl p-12 rounded-3xl shadow-2xl border border-white/20 text-center space-y-6 animate-fade-in">
+        <div className="w-20 h-20 bg-[#B76E79]/20 rounded-full flex items-center justify-center mx-auto mb-6 border border-[#B76E79]/30">
+          <Heart className="text-[#B76E79] fill-[#B76E79]/20" size={40} />
+        </div>
+        <h2 className="text-4xl font-serif-elegant text-white">Thank You!</h2>
+        <p className="text-white/80 text-lg max-w-md mx-auto leading-relaxed">
+          Your RSVP has been received. We are so excited to celebrate our special day with you!
+        </p>
+        <div className="pt-8">
+          <div className="inline-block px-6 py-2 rounded-full border border-[#B76E79] text-[#B76E79] text-xs uppercase tracking-widest font-bold">
+            #EASE'26
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-12">
@@ -143,18 +160,7 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
         </div>
 
         <div className="space-y-2">
-          <div className="flex justify-between items-end">
-            <label className="text-xs uppercase tracking-widest font-semibold text-white/50">A Message for the Couple (Sign Guest Book)</label>
-            <button 
-              type="button" 
-              onClick={handleGenerateAI}
-              disabled={isGenerating}
-              className="text-[10px] text-[#B76E79] font-bold hover:text-white transition-colors uppercase flex items-center gap-1 group"
-            >
-              {isGenerating ? 'Wording magic...' : 'Generate AI Blessing'}
-              <svg className="w-3 h-3 group-hover:rotate-12 transition-transform" fill="currentColor" viewBox="0 0 20 20"><path d="M10.394 2.08a1 1 0 00-.788 0l-7 3a1 1 0 000 1.84L5.25 8.051a.999.999 0 01.356-.257l4-1.714a1 1 0 11.788 1.838L7.667 9.088l1.94.831a1 1 0 00.787 0l7-3a1 1 0 000-1.838l-7-3zM3.31 9.397L5 10.12v4.102a8.969 8.969 0 00-1.05-.174 1 1 0 01-.89-.89 11.115 11.115 0 01.25-3.762zM9.3 16.573A9.026 9.026 0 007 14.935v-3.957l1.818.78a3 3 0 002.364 0l5.508-2.361a11.026 11.026 0 01.25 3.762 1 1 0 01-.89.89 8.968 8.968 0 00-5.35 2.524 1 1 0 01-1.4 0z"></path></svg>
-            </button>
-          </div>
+          <label className="text-xs uppercase tracking-widest font-semibold text-white/50">A Message for the Couple (Sign Guest Book)</label>
           <textarea 
             rows={3} 
             className="w-full px-4 py-3 rounded-none bg-white/5 border border-white/10 text-white focus:ring-1 focus:ring-[#B76E79] outline-none resize-none placeholder-white/20"

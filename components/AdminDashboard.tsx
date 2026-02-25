@@ -133,8 +133,9 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
         hashtag: '#EASE\'26',
         rsvp_deadline: 'June 25th, 2026',
         rsvp_phones: ['08023650289', '07018712196', '09039244218'],
-        hero_image_url: 'https://picsum.photos/seed/wedding-hero/1920/1080',
-        background_image_url: 'https://picsum.photos/seed/wedding-bg/1920/1080?blur=10'
+        hero_image_url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1920',
+        details_image_url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=800',
+        background_image_url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=1920&blur=10'
       };
 
       if (existingSettings) {
@@ -404,6 +405,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
                     placeholder="https://..."
                     value={settings.hero_image_url || ''}
                     onChange={e => setSettings({...settings, hero_image_url: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Details Section Image URL</label>
+                  <input 
+                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
+                    placeholder="https://..."
+                    value={settings.details_image_url || ''}
+                    onChange={e => setSettings({...settings, details_image_url: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
