@@ -31,6 +31,7 @@ export interface WeddingSettings {
   hero_image_url?: string;
   details_image_url?: string;
   background_image_url?: string;
+  music_url?: string;
 }
 
 export interface GalleryImage {

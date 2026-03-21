@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase, WeddingSettings, RSVP, GalleryImage } from '../lib/supabase';
-import { Save, LogOut, Plus, Trash2, Image as ImageIcon, Users, Settings, MessageSquare, ExternalLink, Phone, X, Database, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { Save, LogOut, Plus, Trash2, Image as ImageIcon, Users, Settings, MessageSquare, ExternalLink, Phone, X, Database, CheckCircle2, AlertTriangle, Upload } from 'lucide-react';
 
 interface AdminDashboardProps {
   onLogout: () => void;
@@ -77,6 +77,65 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
     setIsSaving(false);
   };
 
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !supabase) return;
+    
+    try {
+      setIsLoading(true);
+      const base64 = await convertToBase64(file);
+      const { error } = await supabase
+        .from('EASE-gallery')
+        .insert([{ url: base64, order: gallery.length }]);
+
+      if (error) throw error;
+      fetchData();
+    } catch (err: any) {
+      alert('Error uploading image: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleMusicUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !settings) return;
+    
+    try {
+      setIsLoading(true);
+      const base64 = await convertToBase64(file);
+      setSettings({...settings, music_url: base64});
+    } catch (err: any) {
+      alert('Error uploading music: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleThemeImageUpload = async (e: React.ChangeEvent<HTMLInputElement>, field: keyof WeddingSettings) => {
+    const file = e.target.files?.[0];
+    if (!file || !settings) return;
+    
+    try {
+      setIsLoading(true);
+      const base64 = await convertToBase64(file);
+      setSettings({...settings, [field]: base64});
+    } catch (err: any) {
+      alert('Error uploading image: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleAddImage = async () => {
     if (!newImageUrl || !supabase) return;
     const { error } = await supabase
@@ -135,7 +194,8 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
         rsvp_phones: ['08023650289', '07018712196', '09039244218'],
         hero_image_url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1920',
         details_image_url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=800',
-        background_image_url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=1920&blur=10'
+        background_image_url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=1920&blur=10',
+        music_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
       };
 
       if (existingSettings) {
@@ -256,6 +316,37 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
 
         {/* Content */}
         <main className="bg-white rounded-3xl shadow-sm border border-stone-100 p-8 overflow-hidden relative">
+          {/* Statistics Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 flex items-center gap-4">
+              <div className="w-12 h-12 bg-[#008080]/10 rounded-full flex items-center justify-center text-[#008080]">
+                <Users size={24} />
+              </div>
+              <div>
+                <p className="text-xs text-stone-500 font-bold uppercase tracking-widest">Total RSVPs</p>
+                <p className="text-3xl font-serif-elegant text-[#008080]">{rsvps.length}</p>
+              </div>
+            </div>
+            <div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 flex items-center gap-4">
+              <div className="w-12 h-12 bg-[#B76E79]/10 rounded-full flex items-center justify-center text-[#B76E79]">
+                <MessageSquare size={24} />
+              </div>
+              <div>
+                <p className="text-xs text-stone-500 font-bold uppercase tracking-widest">Total Wishes</p>
+                <p className="text-3xl font-serif-elegant text-[#B76E79]">{wishes.length}</p>
+              </div>
+            </div>
+            <div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 flex items-center gap-4">
+              <div className="w-12 h-12 bg-stone-200 rounded-full flex items-center justify-center text-stone-600">
+                <ImageIcon size={24} />
+              </div>
+              <div>
+                <p className="text-xs text-stone-500 font-bold uppercase tracking-widest">Gallery Images</p>
+                <p className="text-3xl font-serif-elegant text-stone-700">{gallery.length}</p>
+              </div>
+            </div>
+          </div>
+
           {isLoading && (
             <div className="absolute inset-0 bg-white/50 backdrop-blur-[2px] z-10 flex items-center justify-center">
               <div className="flex flex-col items-center gap-3">
@@ -400,30 +491,67 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Hero Image URL</label>
-                  <input 
-                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
-                    placeholder="https://..."
-                    value={settings.hero_image_url || ''}
-                    onChange={e => setSettings({...settings, hero_image_url: e.target.value})}
-                  />
+                  <div className="flex gap-2">
+                    <input 
+                      className="flex-1 px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
+                      placeholder="https://..."
+                      value={settings.hero_image_url || ''}
+                      onChange={e => setSettings({...settings, hero_image_url: e.target.value})}
+                    />
+                    <input type="file" accept="image/*" onChange={(e) => handleThemeImageUpload(e, 'hero_image_url')} className="hidden" id="hero-upload" />
+                    <label htmlFor="hero-upload" className="bg-stone-100 text-stone-600 px-3 py-2 rounded-xl font-bold hover:bg-stone-200 transition-all cursor-pointer flex items-center justify-center">
+                      <Upload size={18} />
+                    </label>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Details Section Image URL</label>
-                  <input 
-                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
-                    placeholder="https://..."
-                    value={settings.details_image_url || ''}
-                    onChange={e => setSettings({...settings, details_image_url: e.target.value})}
-                  />
+                  <div className="flex gap-2">
+                    <input 
+                      className="flex-1 px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
+                      placeholder="https://..."
+                      value={settings.details_image_url || ''}
+                      onChange={e => setSettings({...settings, details_image_url: e.target.value})}
+                    />
+                    <input type="file" accept="image/*" onChange={(e) => handleThemeImageUpload(e, 'details_image_url')} className="hidden" id="details-upload" />
+                    <label htmlFor="details-upload" className="bg-stone-100 text-stone-600 px-3 py-2 rounded-xl font-bold hover:bg-stone-200 transition-all cursor-pointer flex items-center justify-center">
+                      <Upload size={18} />
+                    </label>
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Background Image URL</label>
-                  <input 
-                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
-                    placeholder="https://..."
-                    value={settings.background_image_url || ''}
-                    onChange={e => setSettings({...settings, background_image_url: e.target.value})}
-                  />
+                  <div className="flex gap-2">
+                    <input 
+                      className="flex-1 px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
+                      placeholder="https://..."
+                      value={settings.background_image_url || ''}
+                      onChange={e => setSettings({...settings, background_image_url: e.target.value})}
+                    />
+                    <input type="file" accept="image/*" onChange={(e) => handleThemeImageUpload(e, 'background_image_url')} className="hidden" id="bg-upload" />
+                    <label htmlFor="bg-upload" className="bg-stone-100 text-stone-600 px-3 py-2 rounded-xl font-bold hover:bg-stone-200 transition-all cursor-pointer flex items-center justify-center">
+                      <Upload size={18} />
+                    </label>
+                  </div>
+                </div>
+                <div className="space-y-2 md:col-span-2 border-t border-stone-100 pt-6">
+                  <h3 className="text-sm font-bold text-[#008080] uppercase tracking-wider">Music Settings</h3>
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Background Music URL (Direct MP3 link)</label>
+                  <div className="flex gap-2">
+                    <input 
+                      className="flex-1 px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
+                      placeholder="https://example.com/song.mp3"
+                      value={settings.music_url || ''}
+                      onChange={e => setSettings({...settings, music_url: e.target.value})}
+                    />
+                    <input type="file" accept="audio/mp3,audio/wav" onChange={handleMusicUpload} className="hidden" id="music-upload" />
+                    <label htmlFor="music-upload" className="bg-stone-100 text-stone-600 px-4 py-2 rounded-xl font-bold hover:bg-stone-200 transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap">
+                      <Upload size={18} /> Upload Music
+                    </label>
+                  </div>
+                  <p className="text-[10px] text-stone-400 italic">Provide a direct link to an MP3 file or upload one. Note: Some browsers block autoplay until user interaction.</p>
                 </div>
               </div>
             </form>
@@ -446,8 +574,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
                   onClick={handleAddImage}
                   className="bg-[#008080] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#006666] transition-all flex items-center gap-2"
                 >
-                  <Plus size={18} /> Add Image
+                  <Plus size={18} /> Add URL
                 </button>
+                <input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" id="gallery-upload" />
+                <label htmlFor="gallery-upload" className="bg-stone-100 text-stone-600 px-6 py-2 rounded-xl font-bold hover:bg-stone-200 transition-all cursor-pointer flex items-center gap-2 whitespace-nowrap">
+                  <Upload size={18} /> Upload Image
+                </label>
               </div>
 
               <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

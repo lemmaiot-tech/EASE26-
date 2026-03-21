@@ -1,11 +1,13 @@
 
 import React, { useState } from 'react';
+import { WeddingSettings } from '../lib/supabase';
 
 interface EnvelopeProps {
   onOpen: () => void;
+  settings: WeddingSettings;
 }
 
-const Envelope: React.FC<EnvelopeProps> = ({ onOpen }) => {
+const Envelope: React.FC<EnvelopeProps> = ({ onOpen, settings }) => {
   const [isOpening, setIsOpening] = useState(false);
 
   const handleOpen = () => {
@@ -86,7 +88,7 @@ const Envelope: React.FC<EnvelopeProps> = ({ onOpen }) => {
               
               {/* Seal Content */}
               <div className="relative z-10 text-center">
-                 <div className="font-serif-elegant font-bold text-white text-xl leading-none tracking-tighter" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.3)' }}>EASE'26</div>
+                 <div className="font-serif-elegant font-bold text-white text-xl leading-none tracking-tighter" style={{ textShadow: '1px 1px 0px rgba(0,0,0,0.3)' }}>{settings.hashtag}</div>
                  <div className="text-[6px] uppercase tracking-[0.2em] text-white/80 font-bold mt-1">Save the Date</div>
               </div>
 
@@ -102,7 +104,13 @@ const Envelope: React.FC<EnvelopeProps> = ({ onOpen }) => {
         {/* Content Preview (Inside the envelope) - Visible when flap opens */}
         <div className="absolute bottom-0 left-0 w-full h-[95%] bg-[#fdfaf5] z-10 transition-transform duration-1000" style={{ transform: isOpening ? 'translateY(-20px)' : 'translateY(0)' }}>
             <div className="p-8 text-center h-full flex flex-col items-center pt-24">
-                <p className="font-script text-4xl text-stone-800 opacity-20">Esther & Emmanuel</p>
+                <p className="font-script text-4xl text-stone-800 opacity-30">{settings.bride_name} & {settings.groom_name}</p>
+                <p className="mt-4 text-sm font-serif-elegant text-stone-600 opacity-50">
+                  {new Date(settings.wedding_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                </p>
+                <p className="mt-2 text-xs text-stone-500 opacity-50 max-w-[80%] truncate">
+                  {settings.venue_address}
+                </p>
             </div>
         </div>
 

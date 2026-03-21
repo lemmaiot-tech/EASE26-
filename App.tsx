@@ -5,6 +5,7 @@ import Countdown from './components/Countdown';
 import RSVPForm from './components/RSVPForm';
 import Gallery from './components/Gallery';
 import GuestBook from './components/GuestBook';
+import MusicPlayer from './components/MusicPlayer';
 import { supabase, WeddingSettings, isSupabaseConfigured } from './lib/supabase';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
@@ -77,7 +78,8 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#fdfaf5] selection:bg-[#008080] selection:text-white" style={settings.background_image_url ? { backgroundImage: `url(${settings.background_image_url})`, backgroundAttachment: 'fixed', backgroundSize: 'cover' } : {}}>
-      {!isOpen && <Envelope onOpen={() => setIsOpen(true)} />}
+      <MusicPlayer url={settings.music_url} autoPlay={isOpen} />
+      {!isOpen && <Envelope onOpen={() => setIsOpen(true)} settings={settings} />}
 
       <main className={`transition-all duration-1000 ease-in-out ${isOpen ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10 h-0 overflow-hidden'}`}>
         {/* Navigation / Header */}
