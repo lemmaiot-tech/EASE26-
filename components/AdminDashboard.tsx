@@ -1,15 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import { supabase, WeddingSettings, RSVP, GalleryImage } from '../lib/supabase';
-import { Save, LogOut, Plus, Trash2, Image as ImageIcon, Users, Settings, MessageSquare, ExternalLink, Phone, X, Database, CheckCircle2, AlertTriangle, Upload } from 'lucide-react';
+import { WeddingSettings, RSVP, GalleryImage, isDbConfigured } from '../lib/db';
+import { Save, LogOut, Plus, Trash2, Image as ImageIcon, Users, Settings, MessageSquare, ExternalLink, Phone, X, Database, CheckCircle2, AlertTriangle, Upload, Gift, Wallet } from 'lucide-react';
+import { BrowserProvider } from 'ethers';
 
 interface AdminDashboardProps {
   onLogout: () => void;
   onUpdate: () => void;
 }
 
+const DEFAULT_WEDDING_SETTINGS: WeddingSettings = {
+  id: 'main',
+  bride_name: 'Esther',
+  groom_name: 'Emmanuel',
+  wedding_date: new Date('2026-07-11T10:00:00Z').toISOString(),
+  engagement_date: 'Saturday, July 11th, 2026',
+  engagement_time: '7:30 AM',
+  bride_family_name: 'Pst. Isaiah & Dns. Mary Oloyede',
+  groom_family_name: 'Mr. Micheal & Late Mrs. Dorcas Gbolasire',
+  church_service_time: '11:00 AM',
+  venue_name: 'Miracles-Link Word Ministries Intl.',
+  venue_address: 'Behinde Nepa\'s Quaters, Araromi, Oyo',
+  venue_map_url: 'https://www.google.com/maps/search/Miracles-Link+Word+Ministries+Intl.+Behinde+Nepa\'s+Quaters,+Araromi,+Oyo',
+  reception_details: 'Location on Access Card',
+  hashtag: '#EASE\'26',
+  rsvp_deadline: 'June 25th, 2026',
+  rsvp_phones: ['08023650289', '07018712196', '09039244218'],
+  footer_note: '"For where your treasure is, there your heart will be also." Thank you for being part of our journey.',
+  bank_details: 'Bank Name: EASE Wedding Bank\nAccount Name: Emmanuel & Esther Oloyede\nAccount Number: 0123456789',
+  wallet_address: '0x1234567890123456789012345678901234567890'
+};
+
 const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) => {
-  const [activeTab, setActiveTab] = useState<'settings' | 'gallery' | 'rsvps'>('settings');
-  const [settings, setSettings] = useState<WeddingSettings | null>(null);
+  const [activeTab, setActiveTab] = useState<'settings' | 'gallery' | 'rsvps' | 'registry'>('settings');
+  const [settings, setSettings] = useState<WeddingSettings>(DEFAULT_WEDDING_SETTINGS);
   const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [wishes, setWishes] = useState<any[]>([]);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
@@ -21,37 +44,35 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
-    if (supabase) {
-      fetchData();
-    }
+    fetchData();
   }, []);
 
   const fetchData = async () => {
-    if (!supabase) return;
     setIsLoading(true);
     setFetchError(null);
     
     try {
-      const [settingsRes, rsvpsRes, galleryRes] = await Promise.all([
-        supabase.from('EASE-settings').select('*').single(),
-        supabase.from('EASE-rsvp').select('*').order('created_at', { ascending: false }),
-        supabase.from('EASE-gallery').select('*').order('order', { ascending: true })
-      ]);
-
-      if (settingsRes.error && settingsRes.error.code !== 'PGRST116') {
-        throw new Error(`Settings error: ${settingsRes.error.message}`);
+      const sResp = await fetch('/api/settings');
+      if (sResp.ok) {
+        const data = await sResp.json();
+        setSettings(data);
+      } else if (sResp.status === 404) {
+        // Just use defaults if not found yet
+        setSettings(DEFAULT_WEDDING_SETTINGS);
       }
-      if (rsvpsRes.error) throw new Error(`RSVP error: ${rsvpsRes.error.message}`);
-      if (galleryRes.error) throw new Error(`Gallery error: ${galleryRes.error.message}`);
 
-      if (settingsRes.data) setSettings(settingsRes.data);
-      if (rsvpsRes.data) {
-        setRsvps(rsvpsRes.data);
-        // Filter wishes from RSVPs
-        const guestWishes = rsvpsRes.data.filter(r => r.message && r.message.trim() !== '');
+      const rResp = await fetch('/api/rsvps');
+      if (rResp.ok) {
+        const rsvpsData = await rResp.json();
+        setRsvps(rsvpsData);
+        const guestWishes = rsvpsData.filter((r: RSVP) => r.message && r.message.trim() !== '');
         setWishes(guestWishes);
       }
-      if (galleryRes.data) setGallery(galleryRes.data);
+
+      const gResp = await fetch('/api/gallery');
+      if (gResp.ok) {
+        setGallery(await gResp.json());
+      }
     } catch (err: any) {
       console.error('Fetch error:', err);
       setFetchError(err.message || 'An unexpected error occurred while fetching data.');
@@ -62,19 +83,22 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!settings || !supabase) return;
+    if (!settings) return;
     setIsSaving(true);
-    const { error } = await supabase
-      .from('EASE-settings')
-      .update(settings)
-      .eq('id', settings.id);
-
-    if (error) alert('Error saving settings: ' + error.message);
-    else {
+    try {
+      const resp = await fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(settings)
+      });
+      if (!resp.ok) throw new Error('Failed to save settings');
       onUpdate();
       alert('Settings saved successfully!');
+    } catch (error: any) {
+       alert('Save error: ' + error.message);
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const convertToBase64 = (file: File): Promise<string> => {
@@ -88,16 +112,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file || !supabase) return;
+    if (!file) return;
     
     try {
       setIsLoading(true);
       const base64 = await convertToBase64(file);
-      const { error } = await supabase
-        .from('EASE-gallery')
-        .insert([{ url: base64, order: gallery.length }]);
-
-      if (error) throw error;
+      const resp = await fetch('/api/gallery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: base64, order_index: gallery.length })
+      });
+      if (!resp.ok) throw new Error('Failed to upload image');
       fetchData();
     } catch (err: any) {
       alert('Error uploading image: ' + err.message);
@@ -115,7 +140,45 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
       const base64 = await convertToBase64(file);
       setSettings({...settings, music_url: base64});
     } catch (err: any) {
-      alert('Error uploading music: ' + err.message);
+      alert('Error processing music: ' + err.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const connectWallet = async () => {
+    if (typeof window.ethereum === 'undefined') {
+      alert('MetaMask is not detected. Please install the MetaMask extension or use a browser with Ethereum support.');
+      return;
+    }
+
+    try {
+      setIsLoading(true);
+      
+      // Attempt connection using ethers BrowserProvider
+      const provider = new BrowserProvider(window.ethereum);
+      const accounts = await provider.send("eth_requestAccounts", []);
+      
+      if (accounts && accounts.length > 0 && settings) {
+        setSettings({ ...settings, wallet_address: accounts[0] });
+        alert('Wallet connected successfully!');
+      } else {
+        throw new Error('No accounts returned from MetaMask.');
+      }
+    } catch (err: any) {
+      console.error('MetaMask connection error:', err);
+      
+      let errorMsg = 'Failed to connect to MetaMask.';
+      
+      if (err.code === 4001) {
+        errorMsg = 'Connection request was rejected. Please allow the request in MetaMask.';
+      } else if (window.self !== window.top) {
+        errorMsg = 'MetaMask connection is blocked inside this preview window (iframe). Please open the application in a new tab by clicking the "Open in new tab" icon at the top right, then try connecting again.';
+      } else if (err.message) {
+        errorMsg = err.message;
+      }
+      
+      alert(errorMsg);
     } finally {
       setIsLoading(false);
     }
@@ -130,106 +193,119 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
       const base64 = await convertToBase64(file);
       setSettings({...settings, [field]: base64});
     } catch (err: any) {
-      alert('Error uploading image: ' + err.message);
+      alert('Error processing image: ' + err.message);
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleAddImage = async () => {
-    if (!newImageUrl || !supabase) return;
-    const { error } = await supabase
-      .from('EASE-gallery')
-      .insert([{ url: newImageUrl, order: gallery.length }]);
-
-    if (error) alert('Error adding image: ' + error.message);
-    else {
+    if (!newImageUrl) return;
+    try {
+      const resp = await fetch('/api/gallery', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: newImageUrl, order_index: gallery.length })
+      });
+      if (!resp.ok) throw new Error('Failed to add image');
       setNewImageUrl('');
       fetchData();
+    } catch (error: any) {
+      alert('Error adding image: ' + error.message);
     }
   };
 
   const handleDeleteImage = async (id: string) => {
-    if (!confirm('Delete this image?') || !supabase) return;
-    const { error } = await supabase.from('EASE-gallery').delete().eq('id', id);
-    if (error) alert('Error deleting image: ' + error.message);
-    else fetchData();
+    if (!confirm('Delete this image?')) return;
+    try {
+      const resp = await fetch(`/api/gallery/${id}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error('Failed to delete image');
+      fetchData();
+    } catch (error: any) {
+      alert('Delete error: ' + error.message);
+    }
   };
 
   const handleDeleteRSVP = async (id: string) => {
-    if (!confirm('Delete this RSVP?') || !supabase) return;
-    const { error } = await supabase.from('EASE-rsvp').delete().eq('id', id);
-    if (error) alert('Error deleting RSVP: ' + error.message);
-    else fetchData();
+    if (!confirm('Delete this RSVP?')) return;
+    try {
+      const resp = await fetch(`/api/rsvps/${id}`, { method: 'DELETE' });
+      if (!resp.ok) throw new Error('Failed to delete RSVP');
+      fetchData();
+    } catch (error: any) {
+      alert('Delete error: ' + error.message);
+    }
   };
 
   const handleDeleteWish = async (id: string) => {
-    if (!confirm('Remove this wish from the guest book? (The RSVP will remain)') || !supabase) return;
-    const { error } = await supabase
-      .from('EASE-rsvp')
-      .update({ message: '' })
-      .eq('id', id);
-      
-    if (error) alert('Error removing wish: ' + error.message);
-    else fetchData();
+    if (!confirm('Remove this wish from the guest book? (The RSVP will remain)')) return;
+    try {
+      const resp = await fetch(`/api/rsvps/${id}`, { 
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: '' }) 
+      });
+      if (!resp.ok) throw new Error('Failed to remove wish');
+      fetchData();
+    } catch (error: any) {
+      alert('Update error: ' + error.message);
+    }
   };
 
   const handleSeedDatabase = async () => {
-    if (!supabase || !confirm('This will populate your database with default wedding data. Continue?')) return;
+    if (!confirm('This will populate your database with default wedding data. Continue?')) return;
     setIsSeeding(true);
     try {
-      // 1. Seed Settings
-      const { data: existingSettings } = await supabase.from('EASE-settings').select('id').single();
-      const defaultSettings = {
-        groom_name: 'Emmanuel',
-        bride_name: 'Esther',
-        wedding_date: '2026-07-11T10:00:00Z',
-        engagement_time: '7:30 AM',
-        church_service_time: '11:00 AM',
-        venue_name: 'Miracles-Link Word Ministries Intl.',
-        venue_address: 'Behinde Nepa\'s Quaters, Araromi, Oyo',
-        reception_details: 'Location on Access Card',
-        hashtag: '#EASE\'26',
-        rsvp_deadline: 'June 25th, 2026',
-        rsvp_phones: ['08023650289', '07018712196', '09039244218'],
-        hero_image_url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1920',
-        details_image_url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=800',
-        background_image_url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=1920&blur=10',
-        music_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3'
+      const payload = {
+        settings: {
+          groom_name: 'Emmanuel',
+          bride_name: 'Esther',
+          bride_family_name: 'Pst. Isaiah & Dns. Mary Oloyede',
+          groom_family_name: 'Mr. Micheal & Late Mrs. Dorcas Gbolasire',
+          wedding_date: '2026-07-11T10:00:00Z',
+          engagement_date: 'Saturday, July 11th, 2026',
+          engagement_time: '7:30 AM',
+          church_service_time: '11:00 AM',
+          venue_name: 'Miracles-Link Word Ministries Intl.',
+          venue_address: 'Behinde Nepa\'s Quaters, Araromi, Oyo',
+          venue_map_url: 'https://www.google.com/maps/search/Miracles-Link+Word+Ministries+Intl.+Behinde+Nepa\'s+Quaters,+Araromi,+Oyo',
+          reception_details: 'Location on Access Card',
+          hashtag: '#EASE\'26',
+          rsvp_deadline: 'June 25th, 2026',
+          rsvp_phones: ['08023650289', '07018712196', '09039244218'],
+          hero_image_url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&q=80&w=1920',
+          details_image_url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=800',
+          background_image_url: 'https://images.unsplash.com/photo-1511795409834-ef04bbd61622?auto=format&fit=crop&q=80&w=1920&blur=10',
+          music_url: 'https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3',
+          wallet_address: '0x1234567890123456789012345678901234567890',
+          bank_details: 'Bank Name: EASE Wedding Bank\nAccount Name: Emmanuel & Esther Oloyede\nAccount Number: 0123456789',
+          footer_note: '"For where your treasure is, there your heart will be also." Thank you for being part of our journey.'
+        },
+        gallery: [
+          { url: "https://picsum.photos/seed/wed1/1200/800", order: 0 },
+          { url: "https://picsum.photos/seed/wed2/1200/800", order: 1 },
+          { url: "https://picsum.photos/seed/wed3/1200/800", order: 2 }
+        ],
+        rsvps: [
+          { name: 'John Doe', email: 'john@example.com', attending: 'yes', guests: 2, message: 'Wishing you both a lifetime of happiness and love!' },
+          { name: 'Jane Smith', email: 'jane@example.com', attending: 'yes', guests: 1, message: 'So happy for you two! Can\'t wait to celebrate.' },
+          { name: 'Michael Brown', email: 'mike@example.com', attending: 'no', guests: 0, message: 'May your journey together be filled with joy and laughter. Sorry I can\'t make it!' }
+        ]
       };
 
-      if (existingSettings) {
-        await supabase.from('EASE-settings').update(defaultSettings).eq('id', existingSettings.id);
-      } else {
-        await supabase.from('EASE-settings').insert([defaultSettings]);
-      }
-
-      // 3. Seed Gallery
-      const defaultImages = [
-        { url: "https://picsum.photos/seed/wed1/1200/800", order: 0 },
-        { url: "https://picsum.photos/seed/wed2/1200/800", order: 1 },
-        { url: "https://picsum.photos/seed/wed3/1200/800", order: 2 }
-      ];
-      await supabase.from('EASE-gallery').insert(defaultImages);
-
-      // 4. Seed RSVPs with Guest Book entries
-      const defaultRSVPs = [
-        { name: 'John Doe', email: 'john@example.com', attending: 'yes', guests: 2, message: 'Wishing you both a lifetime of happiness and love!' },
-        { name: 'Jane Smith', email: 'jane@example.com', attending: 'yes', guests: 1, message: 'So happy for you two! Can\'t wait to celebrate.' },
-        { name: 'Michael Brown', email: 'mike@example.com', attending: 'no', guests: 0, message: 'May your journey together be filled with joy and laughter. Sorry I can\'t make it!' }
-      ];
-      await supabase.from('EASE-rsvp').insert(defaultRSVPs);
+      const resp = await fetch('/api/seed', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      
+      if (!resp.ok) throw new Error('Failed to seed database');
 
       alert('Database seeded successfully!');
       fetchData();
     } catch (err: any) {
       console.error(err);
-      const msg = err.message || 'Unknown error';
-      if (msg.includes('relation') && msg.includes('does not exist')) {
-        alert('Error: Database tables not found. Please run the SQL schema in your Supabase SQL Editor first.');
-      } else {
-        alert(`Error seeding database: ${msg}`);
-      }
+      alert(`Error seeding database: ${err.message || 'Unknown error'}`);
     } finally {
       setIsSeeding(false);
     }
@@ -281,6 +357,12 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
             >
               <MessageSquare size={20} /> Guest Book
             </button>
+            <button 
+              onClick={() => setActiveTab('registry')}
+              className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl transition-all font-medium ${activeTab === 'registry' ? 'bg-[#008080] text-white shadow-md' : 'hover:bg-stone-100 text-stone-600'}`}
+            >
+              <Gift size={20} /> Gift Registry
+            </button>
           </div>
 
           <div className="pt-6 border-t border-stone-100">
@@ -290,7 +372,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
               </div>
               
               <div className="flex items-center gap-2">
-                {supabase ? (
+                {isDbConfigured ? (
                   <>
                     <CheckCircle2 size={16} className="text-green-500" />
                     <span className="text-xs font-bold text-green-700">Connected</span>
@@ -305,7 +387,7 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
 
               <button 
                 onClick={handleSeedDatabase}
-                disabled={!supabase || isSeeding}
+                disabled={!isDbConfigured || isSeeding}
                 className="w-full bg-stone-200 hover:bg-stone-300 text-stone-700 py-2 rounded-lg text-xs font-bold transition-all disabled:opacity-50 flex items-center justify-center gap-2"
               >
                 {isSeeding ? 'Seeding...' : 'Seed Default Data'}
@@ -417,8 +499,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
                   <input 
                     type="datetime-local"
                     className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
-                    value={new Date(settings.wedding_date).toISOString().slice(0, 16)}
-                    onChange={e => setSettings({...settings, wedding_date: new Date(e.target.value).toISOString()})}
+                    value={settings.wedding_date ? new Date(settings.wedding_date).toISOString().slice(0, 16) : ''}
+                    onChange={e => {
+                      try {
+                        const date = new Date(e.target.value);
+                        if (!isNaN(date.getTime())) {
+                          setSettings({...settings, wedding_date: date.toISOString()});
+                        }
+                      } catch (e) {}
+                    }}
                   />
                 </div>
                 <div className="space-y-2">
@@ -427,6 +516,30 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
                     className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
                     value={settings.hashtag}
                     onChange={e => setSettings({...settings, hashtag: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Bride Family Name(s)</label>
+                  <input 
+                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
+                    value={settings.bride_family_name || ''}
+                    onChange={e => setSettings({...settings, bride_family_name: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Groom Family Name(s)</label>
+                  <input 
+                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
+                    value={settings.groom_family_name || ''}
+                    onChange={e => setSettings({...settings, groom_family_name: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Engagement Date</label>
+                  <input 
+                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
+                    value={settings.engagement_date || ''}
+                    onChange={e => setSettings({...settings, engagement_date: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2">
@@ -462,6 +575,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
                     onChange={e => setSettings({...settings, venue_address: e.target.value})}
                   />
                 </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Google Maps Link</label>
+                  <input 
+                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
+                    placeholder="https://goo.gl/maps/..."
+                    value={settings.venue_map_url || ''}
+                    onChange={e => setSettings({...settings, venue_map_url: e.target.value})}
+                  />
+                </div>
                 <div className="space-y-2">
                   <label className="text-xs uppercase tracking-widest font-bold text-stone-400">RSVP Deadline</label>
                   <input 
@@ -484,6 +606,34 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
                     className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
                     value={settings.rsvp_phones.join(', ')}
                     onChange={e => setSettings({...settings, rsvp_phones: e.target.value.split(',').map(p => p.trim())})}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Footer Note</label>
+                  <textarea 
+                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none resize-none"
+                    rows={2}
+                    value={settings.footer_note || ''}
+                    onChange={e => setSettings({...settings, footer_note: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Bank Details</label>
+                  <textarea 
+                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none resize-none"
+                    rows={3}
+                    placeholder="Bank Name, Account Name, Account Number..."
+                    value={settings.bank_details || ''}
+                    onChange={e => setSettings({...settings, bank_details: e.target.value})}
+                  />
+                </div>
+                <div className="space-y-2 md:col-span-2">
+                  <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Crypto Wallet Address</label>
+                  <input 
+                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none font-mono text-sm"
+                    placeholder="0x..."
+                    value={settings.wallet_address || ''}
+                    onChange={e => setSettings({...settings, wallet_address: e.target.value})}
                   />
                 </div>
                 <div className="space-y-2 md:col-span-2 border-t border-stone-100 pt-6">
@@ -658,6 +808,69 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
                     </div>
                   </div>
                 )))}
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'registry' && settings && (
+            <div className="space-y-8">
+              <div className="flex justify-between items-center border-b border-stone-100 pb-4">
+                <h2 className="text-2xl font-serif-elegant text-[#008080]">Gift Registry</h2>
+                <button 
+                  onClick={handleSaveSettings}
+                  disabled={isSaving}
+                  className="flex items-center gap-2 bg-[#008080] text-white px-6 py-2 rounded-xl font-bold hover:bg-[#006666] transition-all disabled:opacity-50"
+                >
+                  <Save size={18} /> {isSaving ? 'Saving...' : 'Save Registry'}
+                </button>
+              </div>
+
+              <div className="space-y-6">
+                <div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 space-y-4">
+                  <div className="flex items-center gap-3 text-[#008080]">
+                    <Wallet size={24} />
+                    <h3 className="font-bold">Crypto Gifts</h3>
+                  </div>
+                  <p className="text-sm text-stone-500">
+                    Provide your Ethereum/Polygon wallet address to receive crypto gifts from your guests.
+                  </p>
+                  <div className="flex flex-col md:flex-row gap-3">
+                    <input 
+                      className="flex-1 px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none font-mono text-sm"
+                      placeholder="0x..."
+                      value={settings.wallet_address || ''}
+                      onChange={e => setSettings({...settings, wallet_address: e.target.value})}
+                    />
+                    <button 
+                      onClick={connectWallet}
+                      className="bg-stone-800 text-white px-6 py-2 rounded-xl font-bold hover:bg-black transition-all flex items-center justify-center gap-2"
+                    >
+                      <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_v7.0.0_logo.svg" className="w-5 h-5" alt="MetaMask" />
+                      Connect MetaMask
+                    </button>
+                  </div>
+                  <p className="text-[10px] text-amber-600 flex items-center gap-1">
+                    <AlertTriangle size={12} />
+                    Note: MetaMask often fails to connect when the app is in an iframe. Open the app in a new tab if you see connection errors.
+                  </p>
+                </div>
+
+                <div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 space-y-4">
+                  <div className="flex items-center gap-3 text-[#B76E79]">
+                    <Database size={24} />
+                    <h3 className="font-bold">Bank Details</h3>
+                  </div>
+                  <p className="text-sm text-stone-500">
+                    Provide your bank account details for traditional cash gifts.
+                  </p>
+                  <textarea 
+                    className="w-full px-4 py-2 rounded-lg border border-stone-200 focus:ring-2 focus:ring-[#B76E79] outline-none resize-none"
+                    rows={4}
+                    placeholder="Bank Name: EASE Bank&#10;Account Name: Esther & Emmanuel&#10;Account Number: 1234567890"
+                    value={settings.bank_details || ''}
+                    onChange={e => setSettings({...settings, bank_details: e.target.value})}
+                  />
+                </div>
               </div>
             </div>
           )}

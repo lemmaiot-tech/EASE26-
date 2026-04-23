@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { supabase } from '../lib/supabase';
+import { isDbConfigured } from '../lib/db';
 
 const DEFAULT_IMAGES = [
   "https://picsum.photos/seed/wed1/1200/800",
@@ -20,23 +20,22 @@ const Gallery: React.FC = () => {
   const touchEndX = useRef<number | null>(null);
 
   useEffect(() => {
-    if (supabase) {
+    if (isDbConfigured) {
       fetchGallery();
     }
   }, []);
 
   const fetchGallery = async () => {
-    if (!supabase) return;
-    
-    const { data, error } = await supabase
-      .from('EASE-gallery')
-      .select('url')
-      .order('order', { ascending: true });
-
-    if (error) {
-      console.error('Error fetching gallery:', error);
-    } else if (data && data.length > 0) {
-      setImages(data.map(img => img.url));
+    try {
+      const resp = await fetch('/api/gallery');
+      if (resp.ok) {
+        const data = await resp.json();
+        if (data && data.length > 0) {
+          setImages(data.map((img: any) => img.url));
+        }
+      }
+    } catch (error) {
+      console.error('Fetch gallery error:', error);
     }
   };
 

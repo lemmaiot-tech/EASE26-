@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Lock, X, Eye, EyeOff, AlertCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Lock, X, AlertCircle } from 'lucide-react';
 
 interface AdminLoginProps {
   onLogin: () => void;
@@ -7,18 +7,33 @@ interface AdminLoginProps {
 }
 
 const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
-  const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const [password, setPassword] = useState('');
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    const HARDCODED_PASSWORD = '@Ease26';
-
-    if (password === HARDCODED_PASSWORD) {
-      onLogin();
-    } else {
-      setError('Incorrect password. Please try again.');
+    setIsLoading(true);
+    setError('');
+    try {
+      const resp = await fetch('/api/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password })
+      });
+      
+      const data = await resp.json();
+      if (resp.ok && data.success) {
+        onLogin();
+      } else {
+        setError(data.error || 'Invalid password');
+      }
+    } catch (err: any) {
+      console.error('Login error:', err);
+      setError('Failed to sign in. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -39,39 +54,38 @@ const AdminLogin: React.FC<AdminLoginProps> = ({ onLogin, onCancel }) => {
           <p className="text-white/60 text-sm mt-1">Enter password to manage wedding details</p>
         </div>
         
-        <form onSubmit={handleSubmit} className="p-8 space-y-6">
-          <div className="space-y-2">
-            <label className="text-xs uppercase tracking-widest font-bold text-stone-400">Password</label>
-            <div className="relative">
-              <input 
-                type={showPassword ? "text" : "password"} 
-                required 
-                autoFocus
-                className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:ring-2 focus:ring-[#008080] focus:border-transparent outline-none transition-all"
-                placeholder="••••••••"
-                value={password}
-                onChange={e => setPassword(e.target.value)}
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600 transition-colors"
-              >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
-              </button>
+        <form onSubmit={handleLogin} className="p-8 space-y-6">
+          {error && (
+            <div className="bg-red-50 text-red-600 p-3 rounded-xl text-xs font-medium flex items-start gap-2">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <span>{error}</span>
             </div>
-            {error && <p className="text-red-500 text-xs mt-1 font-medium">{error}</p>}
-          </div>
+          )}
           
+          <div className="space-y-2">
+            <label className="text-[10px] uppercase tracking-widest font-bold text-stone-400">Password</label>
+            <input 
+              type="password"
+              className="w-full px-4 py-3 rounded-xl border border-stone-200 focus:ring-2 focus:ring-[#008080] outline-none"
+              placeholder="••••••••"
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              required
+            />
+          </div>
+
           <button 
             type="submit"
-            className="w-full bg-[#008080] text-white py-4 rounded-xl font-bold tracking-widest uppercase hover:bg-[#006666] active:scale-95 transition-all shadow-lg"
+            disabled={isLoading}
+            className="w-full bg-[#008080] text-white py-4 rounded-xl font-bold tracking-widest uppercase hover:bg-[#006666] active:scale-95 transition-all shadow-sm flex items-center justify-center gap-3 disabled:opacity-50"
           >
-            Login
+            {isLoading ? (
+              <div className="w-5 h-5 border-2 border-white/40 border-t-transparent rounded-full animate-spin"></div>
+            ) : "Login"}
           </button>
           
           <p className="text-center text-[10px] text-stone-400 uppercase tracking-widest">
-            Click hashtag 5 times to return
+            Authorized personnel only
           </p>
         </form>
       </div>

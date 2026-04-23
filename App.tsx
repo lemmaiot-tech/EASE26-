@@ -6,25 +6,31 @@ import RSVPForm from './components/RSVPForm';
 import Gallery from './components/Gallery';
 import GuestBook from './components/GuestBook';
 import MusicPlayer from './components/MusicPlayer';
-import { supabase, WeddingSettings, isSupabaseConfigured } from './lib/supabase';
+import { WeddingSettings, isDbConfigured } from './lib/db';
+import ErrorBoundary from './components/ErrorBoundary';
 import AdminDashboard from './components/AdminDashboard';
 import AdminLogin from './components/AdminLogin';
-import { AlertCircle } from 'lucide-react';
-import ErrorBoundary from './components/ErrorBoundary';
+import { AlertCircle, Database, Wallet, Gift } from 'lucide-react';
+import { BrowserProvider, parseEther } from 'ethers';
 
 const DEFAULT_SETTINGS: WeddingSettings = {
   id: '',
   groom_name: 'Emmanuel',
   bride_name: 'Esther',
   wedding_date: '2026-07-11T10:00:00Z',
+  engagement_date: 'Saturday, July 11th, 2026',
   engagement_time: '7:30 AM',
+  bride_family_name: 'Pst. Isaiah & Dns. Mary Oloyede',
+  groom_family_name: 'Mr. Micheal & Late Mrs. Dorcas Gbolasire',
   church_service_time: '11:00 AM',
   venue_name: 'Miracles-Link Word Ministries Intl.',
   venue_address: 'Behinde Nepa\'s Quaters, Araromi, Oyo',
+  venue_map_url: 'https://www.google.com/maps/search/Miracles-Link+Word+Ministries+Intl.+Behinde+Nepa\'s+Quaters,+Araromi,+Oyo',
   reception_details: 'Location on Access Card',
   hashtag: '#EASE\'26',
   rsvp_deadline: 'June 25th, 2026',
-  rsvp_phones: ['08023650289', '07018712196', '09039244218']
+  rsvp_phones: ['08023650289', '07018712196', '09039244218'],
+  footer_note: '"For where your treasure is, there your heart will be also." Thank you for being part of our journey.'
 };
 
 const App: React.FC = () => {
@@ -35,23 +41,20 @@ const App: React.FC = () => {
   const [footerClicks, setFooterClicks] = useState(0);
 
   useEffect(() => {
-    if (isSupabaseConfigured) {
+    if (isDbConfigured) {
       fetchSettings();
     }
   }, []);
 
   const fetchSettings = async () => {
-    if (!supabase) return;
-    
-    const { data, error } = await supabase
-      .from('EASE-settings')
-      .select('*')
-      .single();
-
-    if (error) {
-      console.error('Error fetching settings:', error);
-    } else if (data) {
-      setSettings(data);
+    try {
+      const resp = await fetch('/api/settings');
+      if (resp.ok) {
+        const data = await resp.json();
+        setSettings(data);
+      }
+    } catch (err) {
+      console.error('Fetch settings error:', err);
     }
   };
 
@@ -90,13 +93,13 @@ const App: React.FC = () => {
           </div>
         </nav>
 
-        {!isSupabaseConfigured && (
+        {!isDbConfigured && (
           <div className="fixed top-20 left-1/2 -translate-x-1/2 z-[100] w-[90%] max-w-md bg-amber-50 border border-amber-200 p-4 rounded-xl shadow-xl flex items-start gap-3 animate-slide-up">
             <AlertCircle className="text-amber-500 shrink-0 mt-0.5" size={20} />
             <div>
-              <h4 className="text-amber-900 font-bold text-sm">Supabase Not Configured</h4>
+              <h4 className="text-amber-900 font-bold text-sm">Database Not Configured</h4>
               <p className="text-amber-800 text-xs mt-1 leading-relaxed">
-                Please set <code className="bg-amber-100 px-1 rounded">VITE_SUPABASE_URL</code> and <code className="bg-amber-100 px-1 rounded">VITE_SUPABASE_ANON_KEY</code> in your environment to enable the guest book and live updates.
+                Please set up your Neon database connection to enable all features.
               </p>
             </div>
           </div>
@@ -142,11 +145,11 @@ const App: React.FC = () => {
               <h3 className="text-xs uppercase tracking-[0.3em] font-bold text-[#008080]">The Families of</h3>
               <div className="grid md:grid-cols-2 gap-8 items-center">
                 <div className="space-y-2">
-                  <p className="text-xl font-serif-elegant text-[#008080]">Pst. Isaiah & Dns. Mary Oloyede</p>
+                  <p className="text-xl font-serif-elegant text-[#008080]">{settings.bride_family_name}</p>
                 </div>
                 <div className="text-[#B76E79] font-script text-3xl">&</div>
                 <div className="space-y-2">
-                  <p className="text-xl font-serif-elegant text-[#008080]">Mr. Micheal & Late Mrs. Dorcas Gbolasire</p>
+                  <p className="text-xl font-serif-elegant text-[#008080]">{settings.groom_family_name}</p>
                 </div>
               </div>
               <p className="text-stone-500 italic mt-6">request the honour of your presence</p>
@@ -179,7 +182,8 @@ const App: React.FC = () => {
               <div className="space-y-6">
                 <div className="space-y-2">
                   <h3 className="text-xs uppercase tracking-[0.3em] font-bold text-[#B76E79]">Engagement</h3>
-                  <p className="text-2xl font-serif-elegant text-[#008080]">{settings.engagement_time}</p>
+                  <p className="text-2xl font-serif-elegant text-[#008080]">{settings.engagement_date}</p>
+                  <p className="text-stone-500 italic">{settings.engagement_time}</p>
                 </div>
                 <div className="space-y-2">
                   <h3 className="text-xs uppercase tracking-[0.3em] font-bold text-[#B76E79]">Church Service</h3>
@@ -192,7 +196,7 @@ const App: React.FC = () => {
                 <p className="text-2xl md:text-3xl font-serif-elegant text-[#008080]">{settings.venue_name}</p>
                 <p className="text-stone-500">{settings.venue_address}</p>
                 <a 
-                  href={`https://www.google.com/maps/search/${encodeURIComponent(settings.venue_name + ' ' + settings.venue_address)}`}
+                  href={settings.venue_map_url || `https://www.google.com/maps/search/${encodeURIComponent(settings.venue_name + ' ' + settings.venue_address)}`}
                   target="_blank" 
                   rel="noreferrer"
                   className="inline-block mt-4 text-[#008080] border-b border-[#008080] pb-1 text-sm font-semibold hover:text-[#B76E79] hover:border-[#B76E79] transition-colors"
@@ -236,6 +240,98 @@ const App: React.FC = () => {
           <GuestBook />
         </section>
 
+        {/* Gift Registry Section */}
+        <section className="py-24 px-6 bg-[#fdfaf5]">
+          <div className="max-w-4xl mx-auto text-center space-y-16">
+            <div className="space-y-4">
+              <h2 className="text-4xl font-serif-elegant text-[#008080]">Love Gifts</h2>
+              <p className="text-stone-500 italic max-w-lg mx-auto">
+                "Your presence at our wedding is the greatest gift we could ask for. However, if you wish to honour us with a gift, a contribution towards our new home would be much appreciated."
+              </p>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 text-left">
+              {/* Bank Transfer */}
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-stone-100 space-y-6">
+                <div className="flex items-center gap-4 text-[#008080]">
+                  <div className="bg-[#008080]/10 p-3 rounded-2xl">
+                    <Database size={24} />
+                  </div>
+                  <h3 className="text-xl font-serif-elegant">Bank Transfer</h3>
+                </div>
+                {settings.bank_details ? (
+                  <div className="bg-stone-50 p-6 rounded-2xl border border-stone-100 font-serif-elegant text-stone-700 whitespace-pre-line leading-relaxed">
+                    {settings.bank_details}
+                  </div>
+                ) : (
+                  <p className="text-stone-400 text-sm italic">Bank details will be updated soon.</p>
+                )}
+              </div>
+
+              {/* Crypto Registry */}
+              <div className="bg-white p-8 rounded-3xl shadow-sm border border-stone-100 space-y-6">
+                <div className="flex items-center gap-4 text-[#B76E79]">
+                  <div className="bg-[#B76E79]/10 p-3 rounded-2xl">
+                    <Wallet size={24} />
+                  </div>
+                  <h3 className="text-xl font-serif-elegant">Crypto GIFTS</h3>
+                </div>
+                <div className="space-y-4">
+                  <p className="text-sm text-stone-500">
+                    You can support us via your favourite crypto wallet (Ethereum / Polygon).
+                  </p>
+                  {settings.wallet_address ? (
+                    <div className="space-y-3">
+                      <div className="bg-stone-50 p-4 rounded-xl border border-stone-100 font-mono text-[10px] break-all text-stone-600">
+                        {settings.wallet_address}
+                      </div>
+                      <button 
+                        onClick={async () => {
+                          if (typeof window.ethereum === 'undefined') {
+                            alert('MetaMask is not installed. Please install the MetaMask extension to contribute via crypto.');
+                            return;
+                          }
+
+                          try {
+                            const provider = new BrowserProvider(window.ethereum);
+                            const signer = await provider.getSigner();
+                            
+                            // Ask for amount
+                            const amount = prompt('Enter the amount of ETH to gift:', '0.01');
+                            if (!amount) return;
+
+                            const tx = await signer.sendTransaction({
+                              to: settings.wallet_address,
+                              value: parseEther(amount)
+                            });
+                            
+                            alert('Transaction sent! Hash: ' + tx.hash);
+                          } catch (err: any) {
+                            console.error('MetaMask Error:', err);
+                            if (err.code === 4001) {
+                              alert('Transaction was cancelled.');
+                            } else if (window.self !== window.top) {
+                              alert('MetaMask interactions are often blocked in preview windows. Please open the app in a new tab if you encounter persistent connection issues.');
+                            } else {
+                              alert('Connection error: ' + (err.message || 'Unknown error'));
+                            }
+                          }
+                        }}
+                        className="w-full bg-stone-800 text-white py-3 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-black transition-all"
+                      >
+                        <img src="https://upload.wikimedia.org/wikipedia/commons/3/36/MetaMask_v7.0.0_logo.svg" className="w-5 h-5" alt="MetaMask" />
+                        Send via MetaMask
+                      </button>
+                    </div>
+                  ) : (
+                    <p className="text-stone-400 text-sm italic">Wallet address not yet provided.</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* RSVP Section */}
         <section id="rsvp" className="relative py-24 px-6 bg-[#008080] text-white overflow-hidden">
            {/* Floral background decoration */}
@@ -253,9 +349,8 @@ const App: React.FC = () => {
         >
           <h2 className="font-script text-5xl text-[#B76E79] mb-8">{settings.hashtag}</h2>
           <div className="space-y-6 max-w-md mx-auto">
-             <p className="text-sm font-light leading-relaxed opacity-60">
-               "For where your treasure is, there your heart will be also." 
-               Thank you for being part of our journey.
+             <p className="text-sm font-light leading-relaxed opacity-60 italic">
+               {settings.footer_note}
              </p>
              <div className="pt-10 text-[10px] uppercase tracking-[0.3em] text-[#B76E79]">
                With Love, {settings.bride_name} & {settings.groom_name}

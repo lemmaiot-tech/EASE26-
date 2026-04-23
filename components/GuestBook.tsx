@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../lib/supabase';
+import { isDbConfigured } from '../lib/db';
 import { MessageSquare, Heart } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -20,20 +20,16 @@ const GuestBook: React.FC = () => {
   }, []);
 
   const fetchWishes = async () => {
-    if (!supabase) return;
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('EASE-rsvp')
-        .select('id, name, message, created_at')
-        .not('message', 'is', null)
-        .neq('message', '')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      if (data) setWishes(data);
-    } catch (err) {
-      console.error('Error fetching wishes:', err);
+      const resp = await fetch('/api/rsvps');
+      if (resp.ok) {
+        const allRsvps = await resp.json();
+        const filteredWishes = allRsvps.filter((r: any) => r.message && r.message.trim() !== '');
+        setWishes(filteredWishes);
+      }
+    } catch (error) {
+      console.error('Fetch wishes error:', error);
     } finally {
       setIsLoading(false);
     }

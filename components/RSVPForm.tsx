@@ -1,7 +1,7 @@
 
 import React, { useState, useEffect } from 'react';
 import { RSVPData } from '../types';
-import { supabase } from '../lib/supabase';
+import { isDbConfigured } from '../lib/db';
 import { CheckCircle2, Heart } from 'lucide-react';
 
 interface RSVPFormProps {
@@ -29,28 +29,21 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!supabase) {
+    if (!isDbConfigured) {
       alert('RSVP is currently unavailable. Please try again later.');
       return;
     }
     setIsSubmitting(true);
     
-    const { error } = await supabase
-      .from('EASE-rsvp')
-      .insert([
-        {
-          name: formData.name,
-          email: formData.email,
-          attending: formData.attending,
-          guests: formData.guests,
-          message: formData.message
-        }
-      ]);
+    try {
+      const resp = await fetch('/api/rsvps', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData)
+      });
 
-    if (error) {
-      console.error('Supabase RSVP Submission Error:', error);
-      alert(`Failed to submit RSVP: ${error.message || 'Unknown error'}. Please check your database connection.`);
-    } else {
+      if (!resp.ok) throw new Error('Failed to submit RSVP');
+
       setShowSuccess(true);
       setHasSubmitted(true);
       localStorage.setItem('ease_rsvp_submitted', 'true');
@@ -61,9 +54,12 @@ const RSVPForm: React.FC<RSVPFormProps> = ({ deadline }) => {
         guests: 1,
         message: '',
       });
-      // We don't hide success immediately if we want them to see the thank you message
+    } catch (error) {
+      console.error('RSVP Submission Error:', error);
+      alert('Failed to submit RSVP. Please try again later.');
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsSubmitting(false);
   };
 
   if (hasSubmitted && !showSuccess) {

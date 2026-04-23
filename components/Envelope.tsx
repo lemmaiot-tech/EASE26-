@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { WeddingSettings } from '../lib/supabase';
+import { WeddingSettings } from '../lib/db';
 
 interface EnvelopeProps {
   onOpen: () => void;
