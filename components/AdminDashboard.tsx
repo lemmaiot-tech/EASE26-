@@ -52,16 +52,19 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
     setFetchError(null);
     
     try {
-      const sResp = await fetch('/api/settings');
+      const [sResp, rResp, gResp] = await Promise.all([
+        fetch('/api/settings'),
+        fetch('/api/rsvps'),
+        fetch('/api/gallery')
+      ]);
+
       if (sResp.ok) {
         const data = await sResp.json();
         setSettings(data);
       } else if (sResp.status === 404) {
-        // Just use defaults if not found yet
         setSettings(DEFAULT_WEDDING_SETTINGS);
       }
 
-      const rResp = await fetch('/api/rsvps');
       if (rResp.ok) {
         const rsvpsData = await rResp.json();
         setRsvps(rsvpsData);
@@ -69,7 +72,6 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ onLogout, onUpdate }) =
         setWishes(guestWishes);
       }
 
-      const gResp = await fetch('/api/gallery');
       if (gResp.ok) {
         setGallery(await gResp.json());
       }

@@ -25,12 +25,16 @@ app.use(cors());
 app.use(express.json({ limit: '50mb' })); // Increased limit to handle large base64 images
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+let isDatabaseSetup = false;
+
 // --- Database Setup ---
 const setupDatabase = async () => {
+  if (isDatabaseSetup) return;
+  
   try {
     const client = await pool.connect();
     
-    // Settings table
+    // Combine all table creations and migrations into one block to reduce round trips
     await client.query(`
       CREATE TABLE IF NOT EXISTS wedding_settings (
         id VARCHAR(50) PRIMARY KEY,
@@ -57,21 +61,15 @@ const setupDatabase = async () => {
         bank_details TEXT,
         footer_note TEXT,
         updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      );
 
-    // Gallery table
-    await client.query(`
       CREATE TABLE IF NOT EXISTS gallery (
         id SERIAL PRIMARY KEY,
         url TEXT NOT NULL,
         order_index INTEGER NOT NULL,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      );
 
-    // RSVPs table
-    await client.query(`
       CREATE TABLE IF NOT EXISTS rsvps (
         id SERIAL PRIMARY KEY,
         name TEXT NOT NULL,
@@ -80,36 +78,26 @@ const setupDatabase = async () => {
         guests INTEGER NOT NULL,
         message TEXT,
         created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      );
 
-    // Admin Users table (simple for now)
-    await client.query(`
       CREATE TABLE IF NOT EXISTS users (
         uid TEXT PRIMARY KEY,
         email TEXT NOT NULL,
         role TEXT DEFAULT 'admin'
-      )
+      );
+
+      -- Migrations: Add missing columns if table already existed
+      ALTER TABLE wedding_settings ADD COLUMN IF NOT EXISTS engagement_date TEXT;
+      ALTER TABLE wedding_settings ADD COLUMN IF NOT EXISTS bride_family_name TEXT;
+      ALTER TABLE wedding_settings ADD COLUMN IF NOT EXISTS groom_family_name TEXT;
+      ALTER TABLE wedding_settings ADD COLUMN IF NOT EXISTS venue_map_url TEXT;
+      ALTER TABLE wedding_settings ADD COLUMN IF NOT EXISTS footer_note TEXT;
+      ALTER TABLE wedding_settings ADD COLUMN IF NOT EXISTS wallet_address TEXT;
+      ALTER TABLE wedding_settings ADD COLUMN IF NOT EXISTS bank_details TEXT;
     `);
 
-    // --- Migrations: Add missing columns if table already existed ---
-    const addColumn = async (columnName: string, type: string) => {
-      try {
-        await client.query(`ALTER TABLE wedding_settings ADD COLUMN IF NOT EXISTS ${columnName} ${type}`);
-      } catch (e) {
-        console.log(`Column ${columnName} might already exist or failed to add`);
-      }
-    };
-
-    await addColumn('engagement_date', 'TEXT');
-    await addColumn('bride_family_name', 'TEXT');
-    await addColumn('groom_family_name', 'TEXT');
-    await addColumn('venue_map_url', 'TEXT');
-    await addColumn('footer_note', 'TEXT');
-    await addColumn('wallet_address', 'TEXT');
-    await addColumn('bank_details', 'TEXT');
-
     client.release();
+    isDatabaseSetup = true;
     console.log("Database tables verified/created");
   } catch (err) {
     console.error("Error setting up database:", err);
