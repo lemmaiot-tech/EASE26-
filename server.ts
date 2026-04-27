@@ -15,9 +15,16 @@ const __dirname = path.dirname(__filename);
 const { Pool } = pg;
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
+  max: process.env.VERCEL === '1' ? 1 : 10, // Limit connections on Vercel to avoid hitting Neon limits
+  idleTimeoutMillis: 30000,
+  connectionTimeoutMillis: 5000,
   ssl: {
     rejectUnauthorized: false, // Required for Neon
   },
+});
+
+pool.on('error', (err) => {
+  console.error('Unexpected error on idle client', err);
 });
 
 const app = express();
@@ -105,6 +112,31 @@ const setupDatabase = async () => {
 };
 
 // --- API Routes ---
+
+// Start database setup
+const setupPromise = setupDatabase();
+
+// Middleware to ensure DB is ready before handling requests
+app.use(async (req, res, next) => {
+  try {
+    await setupPromise;
+    next();
+  } catch (err) {
+    console.error("Database initialization failed during request:", err);
+    res.status(500).json({ error: "Database initialization failed" });
+  }
+});
+
+// Health check
+app.get("/api/health", async (req, res) => {
+  try {
+    const result = await pool.query("SELECT NOW()");
+    res.json({ status: "ok", time: result.rows[0].now, env: process.env.NODE_ENV });
+  } catch (err) {
+    console.error("Health check failed:", err);
+    res.status(500).json({ status: "error", error: (err as Error).message });
+  }
+});
 
 // Settings
 app.get("/api/settings", async (req, res) => {
@@ -327,7 +359,7 @@ async function startServer() {
 
   // Only listen if this file is run directly and not in a serverless environment like Vercel
   const isVercel = process.env.VERCEL === '1';
-  const isDirectRun = import.meta.url === `file://${process.argv[1]}`;
+  const isDirectRun = import.meta.url === `file://${process.argv[1]}` || (process.argv[1] && process.argv[1].endsWith('server.ts'));
 
   if (!isVercel && (isDirectRun || process.env.NODE_ENV === 'development')) {
     app.listen(PORT, "0.0.0.0", () => {
@@ -335,6 +367,12 @@ async function startServer() {
     });
   }
 }
+
+// Global error handler
+app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+  console.error('Unhandled Error:', err);
+  res.status(500).json({ error: 'Internal Server Error', details: err.message });
+});
 
 startServer();
 
