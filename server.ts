@@ -1,10 +1,11 @@
 import express from "express";
-import { createServer as createViteServer } from "vite";
 import path from "path";
 import { fileURLToPath } from "url";
 import pg from "pg";
 import dotenv from "dotenv";
 import cors from "cors";
+
+// vite import is handled dynamically in startServer to avoid production dependency issues
 
 dotenv.config();
 
@@ -319,10 +320,11 @@ app.post("/api/login", (req, res) => {
 async function startServer() {
   await setupDatabase();
 
-  const PORT = 3000;
+  const PORT = Number(process.env.PORT) || 3000;
 
   if (process.env.NODE_ENV !== "production") {
-    const vite = await createViteServer({
+    const { createServer } = await import("vite");
+    const vite = await createServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
@@ -335,9 +337,17 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+  // Only listen if this file is run directly and not in a serverless environment like Vercel
+  const isVercel = process.env.VERCEL === '1';
+  const isDirectRun = import.meta.url === `file://${process.argv[1]}`;
+
+  if (!isVercel && (isDirectRun || process.env.NODE_ENV === 'development')) {
+    app.listen(PORT, "0.0.0.0", () => {
+      console.log(`Server running on http://localhost:${PORT}`);
+    });
+  }
 }
 
 startServer();
+
+export default app;

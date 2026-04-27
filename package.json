@@ -6,10 +6,13 @@
   "scripts": {
     "dev": "tsx server.ts",
     "build": "vite build",
+    "start": "node server.ts",
     "preview": "vite preview",
     "lint": "tsc --noEmit"
   },
   "dependencies": {
+    "@tailwindcss/postcss": "^4.2.4",
+    "autoprefixer": "^10.5.0",
     "cors": "^2.8.6",
     "dotenv": "^17.4.2",
     "ethers": "^6.16.0",
@@ -18,8 +21,10 @@
     "lucide-react": "^0.575.0",
     "motion": "^12.34.3",
     "pg": "^8.20.0",
+    "postcss": "^8.5.12",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "tailwindcss": "^4.2.4"
   },
   "devDependencies": {
     "@types/express": "^5.0.6",

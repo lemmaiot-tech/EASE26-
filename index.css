@@ -1,0 +1,12 @@
+@import "tailwindcss";
+
+@theme {
+  --font-serif-elegant: "Playfair Display", serif;
+  --font-script: "Great Vibes", cursive;
+}
+
+@layer base {
+  body {
+    @apply bg-[#fcfaf7] m-0 overflow-x-hidden font-sans;
+  }
+}
